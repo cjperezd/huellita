@@ -1,6 +1,7 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import { healthRoutes } from './routes/health';
+import { reportRoutes } from './routes/reports';
 
 const server = Fastify({ logger: true });
 
@@ -10,6 +11,7 @@ async function main() {
   });
 
   await server.register(healthRoutes);
+  await server.register(reportRoutes);
 
   try {
     await server.listen({
