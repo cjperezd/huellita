@@ -1,8 +1,11 @@
 'use client';
 
 import 'leaflet/dist/leaflet.css';
-import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import { useEffect } from 'react';
+import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
+
+const BAHIA_BLANCA = { lat: -38.7196, lng: -62.2724 } as const;
 
 interface Coords {
   lat: number;
@@ -34,13 +37,25 @@ function ClickHandler({ onChange }: { onChange: (c: Coords) => void }) {
   return null;
 }
 
+// Pans the map to coords whenever they change — used when Nominatim sets a location
+function MapPanner({ coords }: { coords: Coords | null }) {
+  const map = useMap();
+  useEffect(() => {
+    if (coords) {
+      map.setView([coords.lat, coords.lng], Math.max(map.getZoom(), 15));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [coords?.lat, coords?.lng]);
+  return null;
+}
+
 export default function LocationPicker({ value, onChange }: Props) {
   return (
     <div className="relative">
       <div className="h-52 rounded-lg overflow-hidden border border-gray-300 cursor-crosshair">
         <MapContainer
-          center={[-34.6037, -58.3816]}
-          zoom={12}
+          center={[BAHIA_BLANCA.lat, BAHIA_BLANCA.lng]}
+          zoom={13}
           style={{ height: '100%', width: '100%' }}
           zoomControl={true}
         >
@@ -49,6 +64,7 @@ export default function LocationPicker({ value, onChange }: Props) {
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
           <ClickHandler onChange={onChange} />
+          <MapPanner coords={value} />
           {value && <Marker position={[value.lat, value.lng]} icon={markerIcon} />}
         </MapContainer>
       </div>

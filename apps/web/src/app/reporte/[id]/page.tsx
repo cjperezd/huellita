@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { getMockReport } from '@/lib/mock-data';
+import { getMockReport, mockReports } from '@/lib/mock-data';
 import { TYPE_LABELS, SPECIES_LABELS, SIZE_LABELS, MARKER_COLORS } from '@/lib/report-utils';
 import ShareButtons from '@/components/ShareButtons';
 
@@ -16,8 +16,8 @@ interface Props {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const report = getMockReport(params.id);
-  if (!report) return { title: 'Reporte no encontrado — Huellita' };
+  const report = getMockReport(params.id) ?? mockReports[0];
+  if (!report) return { title: 'Huellita — Mascotas Perdidas' };
 
   const petName = report.pet.name ?? SPECIES_LABELS[report.pet.species];
   const zone = report.location.neighborhood ?? report.location.city;
@@ -44,7 +44,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default function ReportePage({ params }: Props) {
-  const report = getMockReport(params.id);
+  // During development without DB, fall back to first mock report for any unknown id
+  const report = getMockReport(params.id) ?? mockReports[0];
   if (!report) notFound();
 
   const petName = report.pet.name ?? SPECIES_LABELS[report.pet.species];

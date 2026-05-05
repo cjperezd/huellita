@@ -32,8 +32,8 @@ const TYPE_BADGE_COLORS: Record<ReportType, string> = {
 export default function ReportMap() {
   return (
     <MapContainer
-      center={[-34.6037, -58.3816]}
-      zoom={12}
+      center={[-38.7196, -62.2724]}
+      zoom={13}
       style={{ height: '100%', width: '100%' }}
       zoomControl={true}
     >

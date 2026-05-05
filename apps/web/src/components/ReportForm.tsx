@@ -14,6 +14,52 @@ const LocationPicker = dynamic(() => import('@/components/LocationPicker'), {
   loading: () => <div className="h-52 rounded-lg bg-gray-100 animate-pulse" />,
 });
 
+// ── Nominatim ────────────────────────────────────────────────────────────────
+
+interface NominatimResult {
+  place_id: number;
+  display_name: string;
+  lat: string;
+  lon: string;
+  address?: {
+    road?: string;
+    suburb?: string;
+    neighbourhood?: string;
+    city?: string;
+    town?: string;
+  };
+}
+
+// Bahía Blanca bounding box: west, south, east, north
+const BB_VIEWBOX = '-63.0,-39.1,-61.5,-38.3';
+
+async function searchNominatim(query: string): Promise<NominatimResult[]> {
+  const params = new URLSearchParams({
+    q: query,
+    format: 'json',
+    countrycodes: 'ar',
+    viewbox: BB_VIEWBOX,
+    bounded: '1',
+    limit: '5',
+    addressdetails: '1',
+  });
+  const res = await fetch(`https://nominatim.openstreetmap.org/search?${params}`, {
+    headers: { 'Accept-Language': 'es' },
+  });
+  return res.json() as Promise<NominatimResult[]>;
+}
+
+function formatNominatimLabel(r: NominatimResult): string {
+  const parts = [
+    r.address?.road,
+    r.address?.neighbourhood ?? r.address?.suburb,
+    r.address?.city ?? r.address?.town,
+  ].filter(Boolean);
+  return parts.length > 0 ? parts.join(', ') : r.display_name.split(',').slice(0, 3).join(',').trim();
+}
+
+// ── Form schema ───────────────────────────────────────────────────────────────
+
 const schema = z.object({
   type: z.enum(REPORT_TYPES as unknown as [string, ...string[]]),
   species: z.enum(PET_SPECIES as unknown as [string, ...string[]]),
@@ -29,16 +75,24 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 const TYPE_COLORS = {
-  lost: { ring: 'ring-red-500 bg-red-50', text: 'text-red-700', dot: 'bg-red-500' },
-  found: { ring: 'ring-green-500 bg-green-50', text: 'text-green-700', dot: 'bg-green-500' },
+  lost:     { ring: 'ring-red-500 bg-red-50',     text: 'text-red-700',    dot: 'bg-red-500' },
+  found:    { ring: 'ring-green-500 bg-green-50',  text: 'text-green-700',  dot: 'bg-green-500' },
   sighting: { ring: 'ring-yellow-500 bg-yellow-50', text: 'text-yellow-700', dot: 'bg-yellow-500' },
 } as const;
 
+// ── Component ─────────────────────────────────────────────────────────────────
+
 export default function ReportForm() {
   const router = useRouter();
+
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  // Nominatim state
+  const [suggestions, setSuggestions] = useState<NominatimResult[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const {
     register,
@@ -55,17 +109,48 @@ export default function ReportForm() {
   const latValue = watch('lat');
   const lngValue = watch('lng');
 
+  // ── Photo ─────────────────────────────────────────────────────────────────
+
   function handlePhoto(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    const url = URL.createObjectURL(file);
-    setPhotoPreview(url);
+    setPhotoPreview(URL.createObjectURL(file));
   }
+
+  // ── Nominatim ─────────────────────────────────────────────────────────────
+
+  const { onChange: rhfZoneOnChange, ...zoneRest } = register('zone_text');
+
+  function handleZoneChange(e: React.ChangeEvent<HTMLInputElement>) {
+    void rhfZoneOnChange(e);
+    const query = e.target.value;
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    if (query.length < 3) { setSuggestions([]); setShowSuggestions(false); return; }
+    searchTimer.current = setTimeout(async () => {
+      try {
+        const results = await searchNominatim(query);
+        setSuggestions(results);
+        setShowSuggestions(results.length > 0);
+      } catch {
+        // silently ignore network errors
+      }
+    }, 400);
+  }
+
+  function selectSuggestion(result: NominatimResult) {
+    const label = formatNominatimLabel(result);
+    setValue('zone_text', label, { shouldValidate: true });
+    setValue('lat', parseFloat(result.lat), { shouldValidate: true });
+    setValue('lng', parseFloat(result.lon), { shouldValidate: true });
+    setSuggestions([]);
+    setShowSuggestions(false);
+  }
+
+  // ── Submit ────────────────────────────────────────────────────────────────
 
   async function onSubmit(data: FormValues) {
     setSubmitError(null);
     const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
-
     try {
       const body = {
         type: data.type,
@@ -84,7 +169,7 @@ export default function ReportForm() {
           lng: data.lng,
           address: data.zone_text,
           neighborhood: data.zone_text,
-          city: 'Buenos Aires',
+          city: 'Bahía Blanca',
           province: 'Buenos Aires',
         },
         contactName: data.contactName,
@@ -110,8 +195,11 @@ export default function ReportForm() {
     }
   }
 
+  // ── Render ────────────────────────────────────────────────────────────────
+
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+
       {/* Tipo */}
       <fieldset>
         <legend className="text-sm font-semibold text-gray-700 mb-3">¿Qué querés reportar?</legend>
@@ -128,12 +216,7 @@ export default function ReportForm() {
                     : 'border-gray-200 text-gray-500 hover:border-gray-300'
                 }`}
               >
-                <input
-                  type="radio"
-                  value={t}
-                  {...register('type')}
-                  className="sr-only"
-                />
+                <input type="radio" value={t} {...register('type')} className="sr-only" />
                 <span className={`w-3 h-3 rounded-full ${isSelected ? colors.dot : 'bg-gray-300'}`} />
                 <span className="text-sm font-medium">{TYPE_LABELS[t]}</span>
               </label>
@@ -174,18 +257,14 @@ export default function ReportForm() {
 
       {/* Descripción */}
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-          Descripción
-        </label>
+        <label className="block text-sm font-semibold text-gray-700 mb-1.5">Descripción</label>
         <textarea
           {...register('description')}
           rows={3}
           placeholder="Color del pelaje, características distintivas, collar, dónde y cuándo fue visto..."
           className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
         />
-        {errors.description && (
-          <p className="mt-1 text-xs text-red-600">{errors.description.message}</p>
-        )}
+        {errors.description && <p className="mt-1 text-xs text-red-600">{errors.description.message}</p>}
       </div>
 
       {/* Foto */}
@@ -209,13 +288,7 @@ export default function ReportForm() {
               <span className="text-sm">Subir foto</span>
             </div>
           )}
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={handlePhoto}
-          />
+          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handlePhoto} />
         </div>
         {photoPreview && (
           <button
@@ -228,27 +301,42 @@ export default function ReportForm() {
         )}
       </div>
 
-      {/* Zona */}
+      {/* Zona con autocomplete Nominatim */}
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-          Barrio / zona
-        </label>
-        <input
-          {...register('zone_text')}
-          type="text"
-          placeholder="Ej: Palermo, Villa Crespo, Recoleta..."
-          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-        {errors.zone_text && (
-          <p className="mt-1 text-xs text-red-600">{errors.zone_text.message}</p>
-        )}
+        <label className="block text-sm font-semibold text-gray-700 mb-1.5">Barrio / zona</label>
+        <div className="relative">
+          <input
+            {...zoneRest}
+            type="text"
+            onChange={handleZoneChange}
+            onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+            onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+            placeholder="Ej: Av. Alem, Villa Mitre, centro..."
+            autoComplete="off"
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          {showSuggestions && suggestions.length > 0 && (
+            <ul className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+              {suggestions.map((result) => (
+                <li key={result.place_id}>
+                  <button
+                    type="button"
+                    onMouseDown={() => selectSuggestion(result)}
+                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 border-b border-gray-100 last:border-0"
+                  >
+                    {formatNominatimLabel(result)}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        {errors.zone_text && <p className="mt-1 text-xs text-red-600">{errors.zone_text.message}</p>}
       </div>
 
-      {/* Ubicación */}
+      {/* Ubicación exacta */}
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-          Ubicación exacta
-        </label>
+        <label className="block text-sm font-semibold text-gray-700 mb-1.5">Ubicación exacta</label>
         <LocationPicker
           value={latValue !== undefined && lngValue !== undefined ? { lat: latValue, lng: lngValue } : null}
           onChange={({ lat, lng }) => {
@@ -256,9 +344,7 @@ export default function ReportForm() {
             setValue('lng', lng, { shouldValidate: true });
           }}
         />
-        {errors.lat && (
-          <p className="mt-1 text-xs text-red-600">{errors.lat.message}</p>
-        )}
+        {errors.lat && <p className="mt-1 text-xs text-red-600">{errors.lat.message}</p>}
       </div>
 
       {/* Contacto */}
@@ -271,21 +357,17 @@ export default function ReportForm() {
             placeholder="Nombre y apellido"
             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
-          {errors.contactName && (
-            <p className="mt-1 text-xs text-red-600">{errors.contactName.message}</p>
-          )}
+          {errors.contactName && <p className="mt-1 text-xs text-red-600">{errors.contactName.message}</p>}
         </div>
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-1.5">Teléfono</label>
           <input
             {...register('contactPhone')}
             type="tel"
-            placeholder="+54 9 11..."
+            placeholder="+54 9 291..."
             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
-          {errors.contactPhone && (
-            <p className="mt-1 text-xs text-red-600">{errors.contactPhone.message}</p>
-          )}
+          {errors.contactPhone && <p className="mt-1 text-xs text-red-600">{errors.contactPhone.message}</p>}
         </div>
       </div>
 

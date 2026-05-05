@@ -10,5 +10,9 @@ const ReportMap = dynamic(() => import('@/components/ReportMap'), {
 });
 
 export default function HomePage() {
-  return <ReportMap />;
+  return (
+    <div className="h-full w-full overflow-hidden">
+      <ReportMap />
+    </div>
+  );
 }
