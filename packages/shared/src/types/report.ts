@@ -1,7 +1,10 @@
 import type { Pet } from './pet';
 
-export type ReportType = 'lost' | 'found';
-export type ReportStatus = 'active' | 'resolved' | 'archived';
+export const REPORT_TYPES = ['lost', 'found', 'sighting'] as const;
+export const REPORT_STATUSES = ['active', 'resolved', 'archived'] as const;
+
+export type ReportType = (typeof REPORT_TYPES)[number];
+export type ReportStatus = (typeof REPORT_STATUSES)[number];
 
 export interface Location {
   lat: number;

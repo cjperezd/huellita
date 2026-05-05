@@ -1,4 +1,10 @@
 import type { FastifyInstance } from 'fastify';
+import {
+  REPORT_TYPES,
+  REPORT_STATUSES,
+  PET_SPECIES,
+  PET_SIZES,
+} from '@huellita/shared';
 import type { ReportType, ReportStatus, PetSpecies, PetSize, CreateReportInput } from '@huellita/shared';
 import { store } from '../store';
 import { randomUUID } from 'crypto';
@@ -42,16 +48,16 @@ export async function reportRoutes(app: FastifyInstance) {
         type: 'object',
         required: ['type', 'pet', 'location', 'contactName', 'contactPhone', 'description'],
         properties: {
-          type: { type: 'string', enum: ['lost', 'found'] },
+          type: { type: 'string', enum: [...REPORT_TYPES] },
           pet: {
             type: 'object',
             required: ['species', 'color', 'size'],
             properties: {
               name: { type: 'string', nullable: true },
-              species: { type: 'string', enum: ['dog', 'cat', 'bird', 'rabbit', 'other'] },
+              species: { type: 'string', enum: [...PET_SPECIES] },
               breed: { type: 'string', nullable: true },
               color: { type: 'string' },
-              size: { type: 'string', enum: ['small', 'medium', 'large'] },
+              size: { type: 'string', enum: [...PET_SIZES] },
               description: { type: 'string', nullable: true },
               photos: { type: 'array', items: { type: 'string' } },
               microchip: { type: 'string', nullable: true },
@@ -105,10 +111,10 @@ export async function reportRoutes(app: FastifyInstance) {
       querystring: {
         type: 'object',
         properties: {
-          type: { type: 'string', enum: ['lost', 'found'] },
-          species: { type: 'string', enum: ['dog', 'cat', 'bird', 'rabbit', 'other'] },
-          size: { type: 'string', enum: ['small', 'medium', 'large'] },
-          status: { type: 'string', enum: ['active', 'resolved', 'archived'] },
+          type: { type: 'string', enum: [...REPORT_TYPES] },
+          species: { type: 'string', enum: [...PET_SPECIES] },
+          size: { type: 'string', enum: [...PET_SIZES] },
+          status: { type: 'string', enum: [...REPORT_STATUSES] },
           lat: { type: 'number' },
           lng: { type: 'number' },
           radius: { type: 'number' },
@@ -158,7 +164,7 @@ export async function reportRoutes(app: FastifyInstance) {
         type: 'object',
         required: ['status'],
         properties: {
-          status: { type: 'string', enum: ['active', 'resolved', 'archived'] },
+          status: { type: 'string', enum: [...REPORT_STATUSES] },
         },
       },
     },
