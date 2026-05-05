@@ -6,15 +6,18 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "migrate": "tsx scripts/migrate.ts"
   },
   "dependencies": {
     "@fastify/cors": "^9.0.1",
     "@huellita/shared": "workspace:*",
-    "fastify": "^4.27.0"
+    "fastify": "^4.27.0",
+    "pg": "^8.11.5"
   },
   "devDependencies": {
     "@types/node": "^20.12.12",
+    "@types/pg": "^8.11.6",
     "tsx": "^4.11.2",
     "typescript": "^5.4.5"
   }
