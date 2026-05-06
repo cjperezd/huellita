@@ -42,3 +42,7 @@ coverage/
 # Misc
 .cache/
 tmp/
+
+# Claude Code local settings (contiene credenciales)
+.claude/settings.local.json
+.mcp.json
