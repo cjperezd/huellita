@@ -1,12 +1,13 @@
 'use client';
 
 import 'leaflet/dist/leaflet.css';
+import { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import Link from 'next/link';
 import type { Report, ReportType } from '@huellita/shared';
-import { mockReports } from '@/lib/mock-data';
 import { MARKER_COLORS, TYPE_LABELS, SPECIES_LABELS } from '@/lib/report-utils';
+import { fetchReports } from '@/lib/api';
 
 function pinIcon(color: string) {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 32" width="28" height="36">
@@ -30,29 +31,68 @@ const TYPE_BADGE_COLORS: Record<ReportType, string> = {
 };
 
 export default function ReportMap() {
+  const [reports, setReports] = useState<Report[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const ctrl = new AbortController();
+    fetchReports({ signal: ctrl.signal })
+      .then((data) => {
+        setReports(data);
+        setLoading(false);
+      })
+      .catch((err: unknown) => {
+        if (err instanceof Error && err.name === 'AbortError') return;
+        setError(err instanceof Error ? err.message : 'Error al cargar reportes');
+        setLoading(false);
+      });
+    return () => ctrl.abort();
+  }, []);
+
   return (
-    <MapContainer
-      center={[-38.7196, -62.2724]}
-      zoom={13}
-      style={{ height: '100%', width: '100%' }}
-      zoomControl={true}
-    >
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
-      {mockReports.map((report) => (
-        <Marker
-          key={report.id}
-          position={[report.location.lat, report.location.lng]}
-          icon={pinIcon(MARKER_COLORS[report.type])}
-        >
-          <Popup minWidth={180}>
-            <ReportPopup report={report} />
-          </Popup>
-        </Marker>
-      ))}
-    </MapContainer>
+    <div className="relative h-full w-full">
+      <MapContainer
+        center={[-38.7196, -62.2724]}
+        zoom={13}
+        style={{ height: '100%', width: '100%' }}
+        zoomControl={true}
+      >
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        {reports.map((report) => (
+          <Marker
+            key={report.id}
+            position={[report.location.lat, report.location.lng]}
+            icon={pinIcon(MARKER_COLORS[report.type])}
+          >
+            <Popup minWidth={180}>
+              <ReportPopup report={report} />
+            </Popup>
+          </Marker>
+        ))}
+      </MapContainer>
+
+      {(loading || error || (!loading && reports.length === 0)) && (
+        <div className="pointer-events-none absolute top-4 left-1/2 -translate-x-1/2 z-[1000]">
+          <div
+            className={`pointer-events-auto px-4 py-2 rounded-full text-sm shadow-lg ${
+              error
+                ? 'bg-red-50 text-red-700 border border-red-200'
+                : 'bg-white text-gray-600 border border-gray-200'
+            }`}
+          >
+            {loading
+              ? 'Cargando reportes...'
+              : error
+                ? error
+                : 'Todavía no hay reportes en la zona'}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
