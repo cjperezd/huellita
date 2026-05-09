@@ -86,12 +86,25 @@ export async function reportRoutes(app: FastifyInstance) {
     const body = request.body;
     const now = new Date().toISOString();
 
-    const report = store.create({
+    const report = await store.create({
       id: randomUUID(),
       type: body.type,
       status: 'active',
-      pet: { id: randomUUID(), ...body.pet, photos: body.pet.photos ?? [] },
-      location: body.location,
+      pet: {
+        id: randomUUID(),
+        name: body.pet.name ?? null,
+        species: body.pet.species,
+        breed: body.pet.breed ?? null,
+        color: body.pet.color,
+        size: body.pet.size,
+        description: body.pet.description ?? null,
+        photos: body.pet.photos ?? [],
+        microchip: body.pet.microchip ?? null,
+      },
+      location: {
+        ...body.location,
+        neighborhood: body.location.neighborhood ?? null,
+      },
       contactName: body.contactName,
       contactPhone: body.contactPhone,
       contactEmail: body.contactEmail ?? null,
@@ -126,7 +139,7 @@ export async function reportRoutes(app: FastifyInstance) {
   }, async (request) => {
     const { type, species, size, status, lat, lng, radius, limit = 20, offset = 0 } = request.query;
 
-    let results = store.getAll();
+    let results = await store.getAll();
 
     if (type) results = results.filter((r) => r.type === type);
     if (species) results = results.filter((r) => r.pet.species === species);
@@ -150,7 +163,7 @@ export async function reportRoutes(app: FastifyInstance) {
 
   // GET /reports/:id
   app.get<{ Params: IdParams }>('/reports/:id', async (request, reply) => {
-    const report = store.getById(request.params.id);
+    const report = await store.getById(request.params.id);
     if (!report) {
       return reply.code(404).send({ error: 'Reporte no encontrado', code: 'NOT_FOUND' });
     }
@@ -169,7 +182,7 @@ export async function reportRoutes(app: FastifyInstance) {
       },
     },
   }, async (request, reply) => {
-    const existing = store.getById(request.params.id);
+    const existing = await store.getById(request.params.id);
     if (!existing) {
       return reply.code(404).send({ error: 'Reporte no encontrado', code: 'NOT_FOUND' });
     }
@@ -179,7 +192,7 @@ export async function reportRoutes(app: FastifyInstance) {
       patch.resolvedAt = new Date().toISOString();
     }
 
-    const updated = store.update(request.params.id, patch);
+    const updated = await store.update(request.params.id, patch);
     return updated;
   });
 }
