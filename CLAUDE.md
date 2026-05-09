@@ -53,3 +53,11 @@ pnpm type-check   # Type checking en todos los workspaces
 **apps/api**: `DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`
 
 **apps/web**: `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+
+## Estado actual (6 de mayo, 2026)
+- Scaffolding completo: monorepo pnpm, apps/web y apps/api
+- Endpoints REST implementados: POST/GET/PATCH /reports
+- Migraciones SQL listas (PostGIS): reports y zone_subscriptions
+- Frontend MVP: mapa (/), formulario (/reportar), detalle (/reporte/[id])
+- MCP de Supabase configurado en `.mcp.json` (ignorado en git)
+- Próximo paso: verificar conexión del MCP de Supabase y correr las migraciones SQL
