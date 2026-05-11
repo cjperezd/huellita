@@ -74,6 +74,15 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
+const createdReportSchema = z.object({
+  id: z.string().uuid(),
+});
+
+const apiErrorSchema = z.object({
+  error: z.string(),
+  code: z.string().optional(),
+});
+
 const TYPE_COLORS = {
   lost:     { ring: 'ring-red-500 bg-red-50',     text: 'text-red-700',    dot: 'bg-red-500' },
   found:    { ring: 'ring-green-500 bg-green-50',  text: 'text-green-700',  dot: 'bg-green-500' },
@@ -183,13 +192,18 @@ export default function ReportForm() {
         body: JSON.stringify(body),
       });
 
+      const payload: unknown = await res.json().catch(() => null);
+
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error((err as { error?: string }).error ?? 'Error al crear el reporte');
+        const parsedErr = apiErrorSchema.safeParse(payload);
+        throw new Error(parsedErr.success ? parsedErr.data.error : 'Error al crear el reporte');
       }
 
-      const created = (await res.json()) as { id: string };
-      router.push(`/reporte/${created.id}`);
+      const parsed = createdReportSchema.safeParse(payload);
+      if (!parsed.success) {
+        throw new Error('Respuesta inválida del servidor');
+      }
+      router.push(`/reporte/${parsed.data.id}`);
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Error inesperado');
     }
