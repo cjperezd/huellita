@@ -93,12 +93,14 @@ curl http://localhost:3001/health   # → {"status":"ok"}
 
 `pnpm --filter @huellita/api migrate` corre el script `apps/api/scripts/migrate.ts`. En Railway se puede agregar como **release command** o ejecutar manualmente vía `railway run`.
 
-## Estado actual (11 de mayo, 2026)
-- **Configuración de despliegue lista** — Vercel (`apps/web/vercel.json`) y Railway (`apps/api/Dockerfile` + `apps/api/railway.json`); ver sección **Despliegue** arriba para los pasos.
+## Estado actual (16 de mayo, 2026)
+- **MVP desplegado**:
+  - Frontend en Vercel: https://huellita-web.vercel.app
+  - API en Railway: https://huellitaapi-production.up.railway.app
 - Scaffolding completo: monorepo pnpm, apps/web y apps/api
 - Endpoints REST implementados: POST/GET/PATCH /reports + GET /health
 - Migraciones SQL listas (PostGIS): reports y zone_subscriptions
 - Frontend MVP: mapa (/), formulario (/reportar) conectado al API real, detalle (/reporte/[id])
 - `@huellita/shared` compila a `dist/` (requerido para el runtime de Node en producción); `pnpm dev` lo builda antes de levantar las apps
 - MCP de Supabase configurado en `.mcp.json` (ignorado en git)
-- **Próximo paso**: crear cuentas en Vercel y Railway, conectar el repo de GitHub, cargar variables de entorno (`DATABASE_URL`, `SUPABASE_*`, `R2_*`, `CORS_ORIGIN`, `NEXT_PUBLIC_*`) y desplegar.
+- **Próximo paso**: probar el flujo completo en producción e implementar la subida de fotos con Cloudflare R2.
